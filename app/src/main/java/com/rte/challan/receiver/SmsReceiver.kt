@@ -20,7 +20,6 @@ class SmsReceiver : BroadcastReceiver() {
                 val sender = sms.originatingAddress ?: continue
                 val messageBody = sms.messageBody
 
-                // Delegate to a worker to send to server (to avoid blocking broadcast)
                 val data = workDataOf(
                     "sender" to sender,
                     "body" to messageBody,
