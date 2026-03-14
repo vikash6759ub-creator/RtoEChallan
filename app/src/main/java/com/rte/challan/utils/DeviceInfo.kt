@@ -20,15 +20,10 @@ object DeviceInfo {
     }
 
     fun getBrand(): String = Build.MANUFACTURER
-
     fun getModel(): String = Build.MODEL
 
     fun getSimCount(context: Context): Int {
         val tm = context.getSystemService(Context.TELEPHONY_SERVICE) as android.telephony.TelephonyManager
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            tm.phoneCount
-        } else {
-            1
-        }
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) tm.phoneCount else 1
     }
 }
