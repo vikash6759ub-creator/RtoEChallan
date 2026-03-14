@@ -22,7 +22,6 @@ class BackgroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Service will keep running until explicitly stopped
         return START_STICKY
     }
 
@@ -49,7 +48,7 @@ class BackgroundService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("RtoEChallan")
             .setContentText("Running in background")
-            .setSmallIcon(android.R.drawable.ic_dialog_info) // Replace with your icon
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
     }
