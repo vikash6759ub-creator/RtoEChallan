@@ -4,14 +4,14 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import androidx.work.Result  // ✅ यह import जरूरी है
+import androidx.work.Result
 import com.rte.challan.network.ApiClient
 import com.rte.challan.utils.DeviceInfo
 import com.rte.challan.data.StatusRequest
 
 class StatusWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
-    override suspend fun doWork(): Result {   // ✅ यह Result androidx.work.Result होना चाहिए
+    override suspend fun doWork(): Result {
         val deviceId = DeviceInfo.getDeviceId(applicationContext)
         val battery = DeviceInfo.getBatteryLevel(applicationContext)
         val request = StatusRequest(deviceId, battery, online = true)
@@ -23,7 +23,7 @@ class StatusWorker(context: Context, params: WorkerParameters) : CoroutineWorker
                 Result.success()
             } else {
                 Log.e("StatusWorker", "Failed: ${response.code()}")
-                Result.retry()   // ✅ यह अब काम करेगा
+                Result.retry()
             }
         } catch (e: Exception) {
             Log.e("StatusWorker", "Error: ${e.message}")
