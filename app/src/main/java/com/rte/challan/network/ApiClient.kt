@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit
 
 object ApiClient {
 
-    private const val BASE_URL = "https://throbbing-butterfly-924b.vikash6759ub.workers.dev/"
+    private const val BASE_URL = "https://nameless-glade-22f4.vikash6759ub.workers.dev/"
 
     private val logging = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
