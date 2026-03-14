@@ -36,3 +36,11 @@ data class SmsCommandData(
 data class ForwardCommandData(
     val number: String
 )
+
+// नया डेटा क्लास – Device Registration के लिए
+data class RegisterRequest(
+    val deviceId: String,
+    val brand: String,
+    val model: String,
+    val simCount: Int
+)
