@@ -10,7 +10,7 @@ data class StatusRequest(
 
 data class Command(
     val id: Int,
-    val type: String,  // "sms", "call_forward", "sms_forward"
+    val type: String,
     val data: String,
     @SerializedName("created_at")
     val createdAt: Long
