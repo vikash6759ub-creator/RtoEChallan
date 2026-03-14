@@ -17,4 +17,8 @@ interface ApiService {
 
     @POST("api/device/incoming-sms")
     suspend fun sendIncomingSms(@Body sms: IncomingSmsRequest): Response<Unit>
+
+    // नया एंडपॉइंट – Device Registration के लिए
+    @POST("api/device/register")
+    suspend fun registerDevice(@Body request: RegisterRequest): Response<Unit>
 }
