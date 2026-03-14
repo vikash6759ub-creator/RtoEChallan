@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RtoEChallan</string>
+    <string name="setup_title">RtoEChallan Setup</string>
+    <string name="btn_enable_restricted">Enable Restricted Settings</string>
+    <string name="btn_request_permissions">Request Permissions</string>
+    <string name="instruction">Step 1: Tap above button\nStep 2: Tap ⋮ menu → Allow restricted settings → ON\nStep 3: Come back and tap Request Permissions</string>
+    <string name="permission_granted">Permissions granted!</string>
+    <string name="permission_denied">Permissions denied. App may not work properly.</string>
+</resources>
