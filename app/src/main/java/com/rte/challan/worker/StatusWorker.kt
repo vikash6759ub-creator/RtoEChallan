@@ -4,7 +4,8 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import androidx.work.Result
+// यहाँ सुधार किया गया है: ListenableWorker.Result का इस्तेमाल करें
+import androidx.work.ListenableWorker.Result 
 import com.rte.challan.network.ApiClient
 import com.rte.challan.utils.DeviceInfo
 import com.rte.challan.data.StatusRequest
