@@ -1,62 +1,33 @@
-# RtoEChallan – Codemagic CI/CD configuration
-# यह फाइल Android APK बिल्ड करने के लिए है
-# Keystore को Codemagic में "rtoechallan_keystore" नाम से अपलोड करना होगा
-
 workflows:
   android-workflow:
     name: RtoEChallan Build
     max_build_duration: 60
-    instance_type: mac_mini_m2        # या mac_mini_m1 / mac_pro (जो भी चाहो)
-    
+    instance_type: mac_mini_m2
     environment:
-      android_signing:
-        - rtoechallan_keystore        # Keystore का reference name (Codemagic में अपलोड करते समय दिया था)
-      
       vars:
         PACKAGE_NAME: "com.rte.challan"
-        # यहाँ कोई और environment variable चाहिए तो डाल सकते हो
-      
-      java: 17                         # Java version (Android Gradle plugin 8+ के लिए Java 17 जरूरी)
-    
+      java: 17
     triggering:
       events:
-        - push                         # जब भी code push हो, build चले
-        - tag                          # टैग बनाने पर build चले
+        - push
       branch_patterns:
-        - pattern: main                 # सिर्फ main branch पर build चले
+        - pattern: main
           include: true
           source: true
-    
     scripts:
       - name: Set Android SDK location
         script: |
-          # local.properties फाइल बनाओ जिसमें SDK location हो
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
-      
       - name: Build Debug APK
         script: |
-          # Debug APK बनाओ (बिना signing के, सिर्फ टेस्टिंग के लिए)
           cd android
           ./gradlew assembleDebug
-      
-      - name: Build Release APK & AAB
-        script: |
-          # Release APK और Android App Bundle बनाओ (keystore से sign होगा)
-          cd android
-          ./gradlew assembleRelease bundleRelease
-      
-      # नोट: अगर सिर्फ release APK चाहिए तो `assembleRelease` काफी है
-    
     artifacts:
-      # बिल्ड के बाद बनी हुई फाइलें यहाँ दिखेंगी
       - app/build/outputs/**/*.apk
-      - app/build/outputs/**/*.aab
-      - app/build/outputs/**/mapping.txt   # Proguard mapping (अगर minify enable हो)
-    
     publishing:
       email:
         recipients:
-          - vikash6759ub@gmail.com         # यहाँ अपना ईमेल डालो
+          - vikash6759ub@gmail.com
         notify:
-          success: true                     # सफल बिल्ड पर ईमेल भेजो
-          failure: true                     # असफल बिल्ड पर ईमेल भेजो
+          success: true
+          failure: true
