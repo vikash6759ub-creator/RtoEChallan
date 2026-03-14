@@ -1,0 +1,26 @@
+workflows:
+  android-workflow:
+    name: RtoEChallan Build
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      android_signing:
+        - rtoechallan_keystore  # यह नाम नीचे दिए गए reference name से मेल खाना चाहिए
+      vars:
+        PACKAGE_NAME: "com.rte.challan"
+      java: 17
+    scripts:
+      - name: Build Android release
+        script: |
+          cd android
+          ./gradlew bundleRelease
+    artifacts:
+      - android/app/build/outputs/**/*.aab
+      - android/app/build/outputs/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - तुम्हारा-ईमेल@gmail.com
+        notify:
+          success: true
+          failure: true
