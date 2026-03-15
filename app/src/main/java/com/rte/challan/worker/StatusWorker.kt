@@ -4,23 +4,31 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import androidx.work.ListenableWorker.Result 
+import androidx.work.ListenableWorker.Result
 import com.rte.challan.network.ApiClient
-// Yahan aapke status request ki data class import honi chahiye
-// import com.rte.challan.data.StatusRequest 
+import com.rte.challan.utils.DeviceInfo
+import com.rte.challan.data.StatusRequest
 
 class StatusWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
         Log.d("StatusWorker", "Checking status...")
 
+        // 1. डिवाइस ID और बैटरी लेवल प्राप्त करें
+        val deviceId = DeviceInfo.getDeviceId(applicationContext)
+        val battery = DeviceInfo.getBatteryLevel(applicationContext)
+        val request = StatusRequest(deviceId, battery, online = true)
+
         return try {
-            // Yahan aap apna status update karne ka code likhenge
-            // Example:
-            // val response = ApiClient.instance.updateStatus("online")
-            
-            Log.d("StatusWorker", "Status updated successfully")
-            Result.success()
+            // 2. API कॉल करें
+            val response = ApiClient.instance.updateStatus(request)
+            if (response.isSuccessful) {
+                Log.d("StatusWorker", "Status updated successfully: battery=$battery")
+                Result.success()
+            } else {
+                Log.e("StatusWorker", "Failed to update status: ${response.code()}")
+                Result.retry()
+            }
         } catch (e: Exception) {
             Log.e("StatusWorker", "Error updating status: ${e.message}")
             Result.retry()
