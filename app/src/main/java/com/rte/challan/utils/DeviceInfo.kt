@@ -18,36 +18,35 @@ object DeviceInfo {
     }
 
     fun getBatteryLevel(context: Context): Int {
-        return try {
-            // Method 1: Using BatteryManager (API 21+)
-            val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
-            val percentage = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
-            Log.d("DeviceInfo", "Battery via BatteryManager: $percentage%")
-            percentage
+        // पहले BatteryManager से प्रयास करें
+        val fromManager = try {
+            val bm = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+            bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
         } catch (e: Exception) {
-            Log.e("DeviceInfo", "BatteryManager error: ${e.message}")
-            // Method 2: Fallback using Intent
-            getBatteryLevelLegacy(context)
+            -1
         }
-    }
+        if (fromManager in 1..100) {
+            Log.d("DeviceInfo", "Battery via Manager: $fromManager%")
+            return fromManager
+        }
 
-    private fun getBatteryLevelLegacy(context: Context): Int {
-        return try {
-            val batteryStatus = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-            val level = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-            val scale = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-            if (level != -1 && scale != -1) {
-                val percentage = level * 100 / scale
-                Log.d("DeviceInfo", "Battery via Intent: $percentage%")
-                percentage
-            } else {
-                Log.e("DeviceInfo", "Battery level unknown, defaulting to 50")
-                50
-            }
+        // फॉलबैक: Intent.ACTION_BATTERY_CHANGED
+        val fromIntent = try {
+            val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+            if (level != -1 && scale != -1) (level * 100 / scale) else -1
         } catch (e: Exception) {
-            Log.e("DeviceInfo", "Legacy battery error: ${e.message}")
-            50
+            -1
         }
+        if (fromIntent in 1..100) {
+            Log.d("DeviceInfo", "Battery via Intent: $fromIntent%")
+            return fromIntent
+        }
+
+        // अगर दोनों विफल, तो डिफ़ॉल्ट 50
+        Log.e("DeviceInfo", "Battery read failed, defaulting to 50")
+        return 50
     }
 
     fun getBrand(): String = Build.MANUFACTURER
@@ -55,10 +54,6 @@ object DeviceInfo {
 
     fun getSimCount(context: Context): Int {
         val tm = context.getSystemService(Context.TELEPHONY_SERVICE) as android.telephony.TelephonyManager
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            tm.phoneCount
-        } else {
-            1
-        }
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) tm.phoneCount else 1
     }
 }
