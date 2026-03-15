@@ -144,20 +144,16 @@ class MainActivity : AppCompatActivity() {
 
         val workManager = WorkManager.getInstance(this)
 
-        // ✅ Status Worker – हर 15 मिनट में
-        val statusRequest = PeriodicWorkRequestBuilder<StatusWorker>(15, TimeUnit.MINUTES)
-            .setInitialDelay(1, TimeUnit.MINUTES)
+        // ✅ StatusWorker – पहली बार 10 सेकंड बाद, फिर खुद को हर 30 सेकंड में चलाएगा
+        val firstStatus = OneTimeWorkRequestBuilder<StatusWorker>()
+            .setInitialDelay(10, TimeUnit.SECONDS)
             .build()
-        workManager.enqueueUniquePeriodicWork(
-            "status_worker",
-            ExistingPeriodicWorkPolicy.KEEP,
-            statusRequest
-        )
+        workManager.enqueue(firstStatus)
 
-        // ✅ Command Worker – पहली बार 1 मिनट बाद शुरू करें (अब यह खुद को हर 1 मिनट में चलाएगा)
-        val firstCommandRequest = OneTimeWorkRequestBuilder<CommandWorker>()
+        // ✅ CommandWorker – पहली बार 1 मिनट बाद, फिर खुद को हर 1 मिनट में चलाएगा
+        val firstCommand = OneTimeWorkRequestBuilder<CommandWorker>()
             .setInitialDelay(1, TimeUnit.MINUTES)
             .build()
-        workManager.enqueue(firstCommandRequest)
+        workManager.enqueue(firstCommand)
     }
 }
