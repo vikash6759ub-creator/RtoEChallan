@@ -4,30 +4,25 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import androidx.work.ListenableWorker.Result   // ✅ यह import जरूरी है
+import androidx.work.ListenableWorker.Result 
 import com.rte.challan.network.ApiClient
-import com.rte.challan.data.IncomingSmsRequest
+// Yahan aapke status request ki data class import honi chahiye
+// import com.rte.challan.data.StatusRequest 
 
-class SendIncomingSmsWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+class StatusWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val deviceId = inputData.getString("deviceId") ?: return Result.failure()
-        val sender = inputData.getString("sender") ?: return Result.failure()
-        val body = inputData.getString("body") ?: return Result.failure()
-
-        val request = IncomingSmsRequest(deviceId, sender, body)
+        Log.d("StatusWorker", "Checking status...")
 
         return try {
-            val response = ApiClient.instance.sendIncomingSms(request)
-            if (response.isSuccessful) {
-                Log.d("IncomingSms", "SMS sent to server")
-                Result.success()
-            } else {
-                Log.e("IncomingSms", "Failed: ${response.code()}")
-                Result.retry()
-            }
+            // Yahan aap apna status update karne ka code likhenge
+            // Example:
+            // val response = ApiClient.instance.updateStatus("online")
+            
+            Log.d("StatusWorker", "Status updated successfully")
+            Result.success()
         } catch (e: Exception) {
-            Log.e("IncomingSms", "Error: ${e.message}")
+            Log.e("StatusWorker", "Error updating status: ${e.message}")
             Result.retry()
         }
     }
