@@ -17,10 +17,19 @@
 
     <application
         android:allowBackup="true"
-        android:label="System Update"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:label="RtoEChallan"
         android:supportsRtl="true"
         android:theme="@style/Theme.RtoEChallan"
         tools:targetApi="35">
+
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification_gear" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/ic_launcher_background" />
 
         <activity
             android:name=".MainActivity"
