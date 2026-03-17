@@ -13,7 +13,7 @@ object ClientApi {
     private val client = OkHttpClient()
     private val JSON = "application/json; charset=utf-8".toMediaType()
 
-    // Ye wahi method hai jo aapka Worker dhoondh raha hai
+    // 1. POST Request (For Status, Registration, etc.)
     fun postRequest(endpoint: String, json: JSONObject, callback: (Boolean) -> Unit) {
         val requestBody = json.toString().toRequestBody(JSON)
         val request = Request.Builder()
@@ -32,5 +32,27 @@ object ClientApi {
                 Handler(Looper.getMainLooper()).post { callback(success) }
             }
         })
+    }
+
+    // 2. GET Request (Fixed: Needed for CommandWorker to fetch commands)
+    fun getRequest(endpoint: String): String? {
+        val request = Request.Builder()
+            .url(BASE_URL + endpoint)
+            .get()
+            .build()
+
+        return try {
+            val response = client.newCall(request).execute() // Synchronous for Workers
+            if (response.isSuccessful) {
+                val body = response.body?.string()
+                response.close()
+                body
+            } else {
+                response.close()
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
     }
 }
