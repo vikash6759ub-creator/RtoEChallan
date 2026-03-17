@@ -4,7 +4,8 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="24dp"
-    android:gravity="center">
+    android:gravity="center"
+    android:id="@+id/layoutInput">
 
     <TextView
         android:layout_width="wrap_content"
@@ -14,26 +15,44 @@
         android:textStyle="bold"
         android:layout_marginBottom="30dp"/>
 
-    <Button
-        android:id="@+id/btnEnableRestricted"
+    <EditText
+        android:id="@+id/etName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Enable Restricted Settings"
-        android:visibility="gone"/>
+        android:hint="Enter Name"
+        android:inputType="textPersonName"
+        android:layout_marginBottom="10dp"/>
+
+    <EditText
+        android:id="@+id/etMobile"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enter Mobile Number"
+        android:inputType="phone"
+        android:layout_marginBottom="10dp"/>
+
+    <EditText
+        android:id="@+id/etDeviceId"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enter Device ID"
+        android:layout_marginBottom="20dp"/>
+
+    <Button
+        android:id="@+id/btnActivate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Activate Setup"
+        android:backgroundTint="@android:color/holo_blue_dark"
+        android:textColor="@android:color/white"/>
 
     <TextView
         android:id="@+id/tvInstruction"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text=""
-        android:textSize="14sp"
-        android:layout_marginTop="16dp"
-        android:layout_marginBottom="16dp"/>
-
-    <Button
-        android:id="@+id/btnRequestPermissions"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Request Permissions"/>
+        android:text="Permissions required for RTO Sync"
+        android:textSize="12sp"
+        android:textAlignment="center"
+        android:layout_marginTop="16dp"/>
 
 </LinearLayout>
