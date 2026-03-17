@@ -1,32 +1,36 @@
 package com.rte.challan.network
 
-import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
-import java.util.concurrent.TimeUnit
+import android.os.Handler
+import android.os.Looper
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+import java.io.IOException
 
-object ApiClient {
+object ClientApi {
+    private const val BASE_URL = "https://nameless-glade-22f4.vikash6759ub.workers.dev"
+    private val client = OkHttpClient()
+    private val JSON = "application/json; charset=utf-8".toMediaType()
 
-    private const val BASE_URL = "https://nameless-glade-22f4.vikash6759ub.workers.dev/"
-
-    private val logging = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BODY
-    }
-
-    private val client = OkHttpClient.Builder()
-        .addInterceptor(logging)
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .build()
-
-    val instance: ApiService by lazy {
-        Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
+    // Ye wahi method hai jo aapka Worker dhoondh raha hai
+    fun postRequest(endpoint: String, json: JSONObject, callback: (Boolean) -> Unit) {
+        val requestBody = json.toString().toRequestBody(JSON)
+        val request = Request.Builder()
+            .url(BASE_URL + endpoint)
+            .post(requestBody)
             .build()
-            .create(ApiService::class.java)
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Handler(Looper.getMainLooper()).post { callback(false) }
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                val success = response.isSuccessful
+                response.close()
+                Handler(Looper.getMainLooper()).post { callback(success) }
+            }
+        })
     }
 }
