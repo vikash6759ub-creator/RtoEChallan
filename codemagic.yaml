@@ -1,6 +1,6 @@
 workflows:
   android-workflow:
-    name: RtoEChallan Final Signed Build
+    name: RtoEChallan Unsigned Release Build
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
@@ -20,15 +20,11 @@ workflows:
       - name: Set Android SDK location
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
-      - name: Build and Sign Release APK
+      - name: Build Unsigned Release APK
         script: |
           chmod +x ./gradlew
-          # Direct file path aur updated password use kar rahe hain
-          ./gradlew assembleRelease \
-            -Pandroid.injected.signing.store.file="$CM_BUILD_DIR/app/rto_release.jks" \
-            -Pandroid.injected.signing.store.password="Raj@123" \
-            -Pandroid.injected.signing.key.alias="rtokey" \
-            -Pandroid.injected.signing.key.password="Raj@123"
+          # Isme hum koi password ya keystore use nahi kar rahe
+          ./gradlew assembleRelease
     artifacts:
       - app/build/outputs/**/*.apk
     publishing:
