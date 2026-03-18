@@ -1,5 +1,5 @@
 workflows:
-  android-workflow: # Iske peeche exact 2 spaces hone chahiye
+  android-workflow:
     name: RtoEChallan Final Signed Build
     max_build_duration: 60
     instance_type: mac_mini_m2
@@ -9,22 +9,25 @@ workflows:
       vars:
         PACKAGE_NAME: "com.rte.challan"
       java: 17
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
     scripts:
       - name: Set Android SDK location
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
-      - name: Decode Keystore
-        script: |
-          # Extra spaces saaf karke decode karega
-          echo "$CM_KEYSTORE" | tr -d '\n\r ' | base64 --decode > "$CM_BUILD_DIR/app/rto_release.jks"
       - name: Build and Sign Release APK
         script: |
           chmod +x ./gradlew
           ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file="$CM_BUILD_DIR/app/rto_release.jks" \
-            -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
-            -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
-            -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
+            -Pandroid.injected.signing.store.password="Raj123" \
+            -Pandroid.injected.signing.key.alias="rtokey" \
+            -Pandroid.injected.signing.key.password="Raj123"
     artifacts:
       - app/build/outputs/**/*.apk
     publishing:
