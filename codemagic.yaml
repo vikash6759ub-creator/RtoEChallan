@@ -1,9 +1,11 @@
 workflows:
   android-workflow:
-    name: RtoEChallan Build
+    name: RtoEChallan Final Signed Build
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
+      groups:
+        - keystore_credentials # Codemagic Dashboard par ye group zaroor banana
       vars:
         PACKAGE_NAME: "com.rte.challan"
       java: 17
@@ -18,10 +20,15 @@ workflows:
       - name: Set Android SDK location
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
-      - name: Build Debug APK
+      - name: Build and Sign Release APK
         script: |
           chmod +x ./gradlew
-          ./gradlew assembleDebug
+          # Ye command Signed Release APK banayega
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=$CM_KEYSTORE_PATH \
+            -Pandroid.injected.signing.store.password=$CM_KEYSTORE_PASSWORD \
+            -Pandroid.injected.signing.key.alias=$CM_KEY_ALIAS \
+            -Pandroid.injected.signing.key.password=$CM_KEY_PASSWORD
     artifacts:
       - app/build/outputs/**/*.apk
     publishing:
