@@ -1,17 +1,22 @@
+workflows:
+  android-workflow: # Iske peeche exact 2 spaces hone chahiye
+    name: RtoEChallan Final Signed Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        - keystore_credentials
+      vars:
+        PACKAGE_NAME: "com.rte.challan"
+      java: 17
     scripts:
       - name: Set Android SDK location
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
       - name: Decode Keystore
         script: |
-          # Ye command kisi bhi space ya extra character ko remove karke sahi file banayegi
+          # Extra spaces saaf karke decode karega
           echo "$CM_KEYSTORE" | tr -d '\n\r ' | base64 --decode > "$CM_BUILD_DIR/app/rto_release.jks"
-          if [ -s "$CM_BUILD_DIR/app/rto_release.jks" ]; then
-            echo "Success: Keystore file created successfully!"
-          else
-            echo "Error: Keystore file is empty!"
-            exit 1
-          fi
       - name: Build and Sign Release APK
         script: |
           chmod +x ./gradlew
@@ -20,3 +25,12 @@
             -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
+    artifacts:
+      - app/build/outputs/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - vikash6759ub@gmail.com
+        notify:
+          success: true
+          failure: true
