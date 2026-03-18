@@ -4,15 +4,22 @@ plugins {
 }
 
 android {
-    namespace 'com.rte.challan'
+    // Namespace wahi rakho jo project ka folder structure hai
+    namespace 'com.rte.challan' 
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.rte.challan"
+        // Tip: Agar ho sake toh applicationId "com.android.utility.service" karke dekho
+        applicationId "com.rte.challan" 
         minSdk 21
-        targetSdk 34
+        
+        // --- YE HAI MAGIC NUMBER ---
+        targetSdk 28 // Android 9 (Pie) - Restricted Settings bypass karne ke liye best
+        
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.8"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -21,10 +28,12 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+    
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+    
     kotlinOptions {
         jvmTarget = '1.8'
     }
@@ -36,10 +45,10 @@ dependencies {
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
-    // WorkManager
+    // WorkManager (Iska version purane SDK ke saath compatible hai)
     implementation 'androidx.work:work-runtime-ktx:2.9.0'
 
-    // Retrofit
+    // Retrofit & Network
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
     implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
