@@ -23,12 +23,12 @@ workflows:
       - name: Build and Sign Release APK
         script: |
           chmod +x ./gradlew
-          # Yahan hum direct file path aur password use kar rahe hain
+          # Direct file path aur updated password use kar rahe hain
           ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file="$CM_BUILD_DIR/app/rto_release.jks" \
-            -Pandroid.injected.signing.store.password="Raj123" \
+            -Pandroid.injected.signing.store.password="Raj@123" \
             -Pandroid.injected.signing.key.alias="rtokey" \
-            -Pandroid.injected.signing.key.password="Raj123"
+            -Pandroid.injected.signing.key.password="Raj@123"
     artifacts:
       - app/build/outputs/**/*.apk
     publishing:
